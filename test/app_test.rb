@@ -60,4 +60,44 @@ class AppTest < Minitest::Test
 
     assert_equal "text/plain;charset=utf-8", last_response["Content-Type"]
   end
+
+  def test_get_folder_dne_redirects_to_index
+    bad_folder_name = '/asdfasdfasasdf/'
+    get bad_folder_name
+
+    assert_equal 302, last_response.status
+    # assert_equal 'http://localhost:4567/', last_response['Location']
+  end
+
+  def test_get_folder_dne_includes_error_message
+    bad_folder_name = '/asdfasdfasasdf/'
+    get bad_folder_name
+    get last_response['Location']
+
+    assert_includes last_response.body, "#{bad_folder_name} does not exist."
+  end
+
+  def test_get_file_dne_redirects_to_index
+    bad_file_name = '/asdfasdfasasdf.xyz'
+    get bad_file_name
+
+    assert_equal 302, last_response.status
+    # assert_equal 'http://localhost:4567/', last_response['Location']
+  end
+
+  def test_get_file_dne_includes_error_message
+    bad_file_name = '/asdfasdfasasdf.sdf'
+    get bad_file_name
+    get last_response['Location']
+
+    assert_includes last_response.body, "#{bad_file_name} does not exist."
+  end
+
+  def test_flash_message_disappears
+    bad_file_name = '/asdfasdfasasdf.sdf'
+    get bad_file_name
+    location = last_response['Location']
+    2.times { get location }
+    refute_includes last_response.body, "#{bad_file_name} does not exist."
+  end
 end

@@ -4,8 +4,22 @@ require 'erubi'
 
 ROOT ||= File.expand_path(__dir__).freeze
 
-REXP_FOLDER ||= %r{/(.*/)*} # groups: 1 => relpath
+REXP_FOLDER ||= %r{(.*/)*} # groups: 1 => relpath
 REXP_FILE ||= %r{/(.*/)*([^/]+)} # groups: 1 => relpath, 2 => filename w/ ext
+
+configure do
+  enable :sessions
+  set :session_secret, 'this_isnt_very_secret'
+  set :erb, escape_html: true
+end
+
+#
+## Routes
+#
+# GET   /           -> view index
+# GET   /**/        -> view files in a folder
+# GET   /**/*       -> view single file
+#
 
 before do
 end
@@ -15,50 +29,64 @@ end
 
 # Get a list of files
 get REXP_FOLDER do |rel_path|
-  rel_path ||= '/'
+  begin
+    rel_path ||= '/'
 
-  @files = files_at_path(rel_path)
+    path = validate_path(rel_path)
+    @files = files_at_path(path)
 
-  erb :index
+    erb :index
+  rescue ResourceDoesNotExistError => e
+    session[:error] = e.message
+    redirect '/'
+  end
 end
 
 # Get a single file
 get REXP_FILE do |rel_path, file_name|
-  rel_path ||= '/'
+  begin
+    rel_path ||= '/'
 
-  file_path = validate_path(rel_path)
-  content = File.read(file_path + file_name)
+    file_path = validate_path(rel_path, file_name)
+    content = File.read(file_path)
 
-  status 200
-  content_type :txt
-  content
-
-  # status 200, { 'Content-Type': content_type }, content
+    status 200
+    content_type :txt
+    content
+  rescue ResourceDoesNotExistError => e
+    session[:error] = e.message
+    redirect '/'
+  end
 end
 
-def files_at_path(path, *kwargs)
-  path.prepend ROOT + '/data'
+# How did this happen??
+not_found do
+  session[:error] = 'Well, this is embarrassing...'
+  redirect '/'
+end
 
+# ----
+
+class ResourceDoesNotExistError < StandardError
+end
+
+def files_at_path(path, **kwargs)
   entries = Dir.entries(path)
-  entries.shift 2 unless kwargs.include? :include_dots
+  entries.shift 2 unless kwargs[:include_dots]
 
   entries
 end
 
-def get_content_type(filename)
-  extension = filename.split('.').last.to_sym
-  known_types = { txt: 'text/plain' }
+def validate_path(rel_path, filename = '')
+  path = "#{ROOT}/data/#{rel_path}".squeeze '/'
+  raise IndexError unless Dir.exist? path
 
-  known_types[extension] || 'text/plain'
-end
+  unless filename.empty?
+    path += filename
+    raise NameError unless File.exist? path
+  end
 
-# todo
-def validate_path(path)
-  ROOT + path + 'data/'
-end
-
-# todo
-def out_of_bounds?(_path)
-  # parents = path.count '..'
-  false
+  path
+rescue IndexError, NameError
+  raise ResourceDoesNotExistError, "#{rel_path + filename} does not exist."
 end
