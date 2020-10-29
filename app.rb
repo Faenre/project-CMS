@@ -4,10 +4,8 @@ require 'erubi'
 
 ROOT ||= File.expand_path(__dir__).freeze
 
-# REXP_FOLDER = /\/(.*\/)*/ # capture group: full relpath
-REXP_FOLDER ||= %r{/(.*/)*}
-# REXP_FILE = /\/(.*\/)*([^\/]+)/
-REXP_FILE ||= %r{/(.*/)*([^/]+)} # groups: 1 => relpath, 2 => filename + ext
+REXP_FOLDER ||= %r{/(.*/)*} # groups: 1 => relpath
+REXP_FILE ||= %r{/(.*/)*([^/]+)} # groups: 1 => relpath, 2 => filename w/ ext
 
 before do
 end
