@@ -7,6 +7,8 @@ require 'tempfile'
 require "./app"
 
 class AppTest < Minitest::Test
+  DATA_FOLDER = './test/data'
+  FOLDER = 'nested_folder/'
   HTML_LI_FILE = '<a href="%{fn}">%{fn}</a>'
   HTML_EDIT_LINK = '(<a href="%{fn}/edit">edit</a>)'
 
@@ -17,25 +19,19 @@ class AppTest < Minitest::Test
   end
 
   def setup
-    @dir = Dir.mktmpdir('temp_', './data')
-    @dir_rel = @dir.delete_prefix './data'
-    @dir_name = @dir.delete_prefix './data/'
-
     get '/'
   end
 
-  def teardown
-    FileUtils.remove_entry @dir
-  end
+  def teardown; end
 
-  def test_index_available
+  def test_index_is_available
     assert_equal 200, last_response.status
     assert_equal "text/html;charset=utf-8", last_response["Content-Type"]
   end
 
   def test_index_includes_files_in_data_folder
-    data_files = Dir.entries('./data/')
-    data_files.shift 2
+    data_files = Dir.entries(DATA_FOLDER)
+    data_files.select! { |f| File.file?(DATA_FOLDER + f) }
     list_items = data_files.map { |fn| format(HTML_LI_FILE, fn: fn) }
 
     list_items.each do |line_item|
@@ -44,8 +40,8 @@ class AppTest < Minitest::Test
   end
 
   def test_index_files_include_edit_links
-    data_files = Dir.entries('./data/')
-    data_files.select! { |f| File.file? f }
+    data_files = Dir.entries(DATA_FOLDER)
+    data_files.select! { |f| File.file?(DATA_FOLDER + f) }
     edit_links = data_files.map { |fn| format(HTML_EDIT_LINK, fn: fn) }
 
     edit_links.each do |line_item|
@@ -54,12 +50,11 @@ class AppTest < Minitest::Test
   end
 
   def test_index_includes_folders
-    assert_includes last_response.body, format(HTML_LI_FILE, fn: @dir_name)
+    assert_includes last_response.body, format(HTML_LI_FILE, fn: FOLDER)
   end
 
   def test_index_doesnt_include_edit_links_for_folders
-    #
-    refute_includes last_response.body, format(HTML_EDIT_LINK, fn: @dir_name)
+    refute_includes last_response.body, format(HTML_EDIT_LINK, fn: FOLDER)
   end
 
   def test_index_excludes_dot_links
@@ -69,27 +64,36 @@ class AppTest < Minitest::Test
     end
   end
 
+  def test_nested_folders_do_include_dot_links
+    get '/nested_folder/'
+
+    %w(./ ../).each do |dot|
+      dot_line = format(HTML_LI_FILE, fn: dot)
+      assert_includes last_response.body, dot_line
+    end
+  end
+
   def test_get_file_returns_ok
-    get '/history.txt'
+    get '/plain.txt'
 
     assert_equal 200, last_response.status
   end
 
-  def test_get_file_yields_expected_content
-    get '/history.txt'
+  def test_get_text_file_yields_expected_content
+    get '/plain.txt'
 
-    expected = File.read('./data/history.txt')
+    expected = File.read(DATA_FOLDER + '/plain.txt')
     assert_equal expected, last_response.body
   end
 
   def test_get_text_file_yields_expected_content_type
-    get '/history.txt'
+    get '/plain.txt'
 
     assert_equal "text/plain;charset=utf-8", last_response["Content-Type"]
   end
 
   def test_get_markdown_file_yields_expected_content_type
-    get '/about.md'
+    get '/markdown.md'
 
     assert_equal "text/html;charset=utf-8", last_response["Content-Type"]
   end
@@ -98,7 +102,8 @@ class AppTest < Minitest::Test
     bad_folder_name = '/asdfasdfasasdf/'
     get bad_folder_name
 
-    assert_equal 302, last_response.status
+    assert (300...400).cover? last_response.status
+    # assert_equal '/', last_response['Location']
   end
 
   def test_get_folder_dne_includes_error_message
@@ -113,7 +118,8 @@ class AppTest < Minitest::Test
     bad_file_name = '/asdfasdfasasdf.xyz'
     get bad_file_name
 
-    assert_equal 302, last_response.status
+    # assert_equal 302, last_response.status
+    assert (300...400).cover? last_response.status
   end
 
   def test_get_file_dne_includes_error_message
