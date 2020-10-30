@@ -2,6 +2,7 @@ ENV["RACK_ENV"] = "test"
 
 require "minitest/autorun"
 require "rack/test"
+require 'tempfile'
 
 require "./app"
 
@@ -13,6 +14,16 @@ class AppTest < Minitest::Test
 
   def app
     Sinatra::Application
+  end
+
+  def setup
+    @dir = Dir.mktmpdir('temp_', './data')
+    @dir_rel = @dir.delete_prefix './data'
+    @dir_name = @dir.delete_prefix './data/'
+  end
+
+  def teardown
+    FileUtils.remove_entry @dir
   end
 
   def test_index_available
@@ -34,16 +45,28 @@ class AppTest < Minitest::Test
     end
   end
 
-  def test_index_includes_edit_links
+  def test_index_files_include_edit_links
     get '/'
 
     data_files = Dir.entries('./data/')
-    data_files.shift 2
+    data_files.select! { |f| File.file? f }
     edit_links = data_files.map { |fn| format(HTML_EDIT_LINK, fn: fn) }
 
     edit_links.each do |line_item|
       assert_includes last_response.body, line_item
     end
+  end
+
+  def test_index_includes_folders
+    get '/'
+
+    assert_includes last_response.body, format(HTML_LI_FILE, fn: @dir_name)
+  end
+
+  def test_index_doesnt_include_edit_links_for_folders
+    get '/'
+
+    refute_includes last_response.body, format(HTML_EDIT_LINK, fn: @dir_name)
   end
 
   def test_index_excludes_dot_links

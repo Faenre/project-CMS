@@ -36,13 +36,16 @@ before do
 end
 
 helpers do
+  def file?(path, fname)
+    File.file? path + fname
+  end
 end
 
 # Get a list of files
 get REXP[:folder] do |rel_path|
   begin
-    path = validate_path(rel_path)
-    @files = files_at_path(path)
+    @path = validate_path(rel_path)
+    @files = files_at_path(@path)
 
     erb :index
   rescue ResourceDoesNotExistError => e

@@ -2,7 +2,9 @@
   <% @files.each do |fname| %>
     <li>
       <a href="<%= fname %>"><%= fname %></a>
-      (<a href="<%= "#{fname}/edit" %>">edit</a>)
+      <% if file?(@path, fname) %>
+        (<a href="<%= "#{fname}/edit" %>">edit</a>)
+      <% end %>
     </li>
   <% end %>
 </ul>
