@@ -55,10 +55,16 @@ class AppTest < Minitest::Test
     assert_equal expected, last_response.body
   end
 
-  def test_get_file_yields_expected_content_type
+  def test_get_text_file_yields_expected_content_type
     get '/history.txt'
 
     assert_equal "text/plain;charset=utf-8", last_response["Content-Type"]
+  end
+
+  def test_get_markdown_file_yields_expected_content_type
+    get '/about.md'
+
+    assert_equal "text/html;charset=utf-8", last_response["Content-Type"]
   end
 
   def test_get_folder_dne_redirects_to_index
@@ -66,7 +72,6 @@ class AppTest < Minitest::Test
     get bad_folder_name
 
     assert_equal 302, last_response.status
-    # assert_equal 'http://localhost:4567/', last_response['Location']
   end
 
   def test_get_folder_dne_includes_error_message
@@ -82,7 +87,6 @@ class AppTest < Minitest::Test
     get bad_file_name
 
     assert_equal 302, last_response.status
-    # assert_equal 'http://localhost:4567/', last_response['Location']
   end
 
   def test_get_file_dne_includes_error_message
