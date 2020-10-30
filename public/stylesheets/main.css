@@ -1,0 +1,14 @@
+* {
+  font-family: sans-serif;
+}
+
+#flash div {
+  padding: 2px;
+}
+
+#flash div.error {
+  background-color: orange;
+}
+#flash div.success {
+  background-color: lightblue;
+}

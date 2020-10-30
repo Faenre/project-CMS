@@ -42,6 +42,15 @@ helpers do
   end
 end
 
+get '/stylesheets/*' do |css|
+  begin
+    File.read("./public/#{css}")
+  rescue Errno::ENOENT
+    status 404
+    ''
+  end
+end
+
 # Get a list of files
 get REXP[:folder] do |rel_path|
   begin
@@ -66,7 +75,7 @@ get REXP[:file] do |rel_path, file_name, extension|
     content
   rescue ResourceDoesNotExistError => e
     session[:error] = e.message
-    redirect '/'
+    pass
   end
 end
 
@@ -102,7 +111,7 @@ end
 
 # How did this happen??
 not_found do
-  session[:error] = 'Well, this is embarrassing...'
+  session[:error] ||= 'Well, this is embarrassing...'
   redirect '/'
 end
 
