@@ -20,6 +20,8 @@ class AppTest < Minitest::Test
     @dir = Dir.mktmpdir('temp_', './data')
     @dir_rel = @dir.delete_prefix './data'
     @dir_name = @dir.delete_prefix './data/'
+
+    get '/'
   end
 
   def teardown
@@ -27,15 +29,11 @@ class AppTest < Minitest::Test
   end
 
   def test_index_available
-    get "/"
-
     assert_equal 200, last_response.status
     assert_equal "text/html;charset=utf-8", last_response["Content-Type"]
   end
 
   def test_index_includes_files_in_data_folder
-    get '/'
-
     data_files = Dir.entries('./data/')
     data_files.shift 2
     list_items = data_files.map { |fn| format(HTML_LI_FILE, fn: fn) }
@@ -46,8 +44,6 @@ class AppTest < Minitest::Test
   end
 
   def test_index_files_include_edit_links
-    get '/'
-
     data_files = Dir.entries('./data/')
     data_files.select! { |f| File.file? f }
     edit_links = data_files.map { |fn| format(HTML_EDIT_LINK, fn: fn) }
@@ -58,20 +54,15 @@ class AppTest < Minitest::Test
   end
 
   def test_index_includes_folders
-    get '/'
-
     assert_includes last_response.body, format(HTML_LI_FILE, fn: @dir_name)
   end
 
   def test_index_doesnt_include_edit_links_for_folders
-    get '/'
-
+    #
     refute_includes last_response.body, format(HTML_EDIT_LINK, fn: @dir_name)
   end
 
   def test_index_excludes_dot_links
-    get '/'
-
     %w(. ..).each do |dot|
       dot_line = format(HTML_LI_FILE, fn: dot)
       refute_includes last_response.body, dot_line
