@@ -5,8 +5,14 @@ require 'redcarpet'
 
 ROOT ||= File.expand_path(__dir__).freeze
 
-REXP_FOLDER ||= %r{(.*/)*} # groups: 1 => relpath
-REXP_FILE ||= %r{/(.*/)*([^/]+)} # groups: 1 => relpath, 2 => filename w/ ext
+REXP = {
+  folder: %r{(\/(?:.*\/)*)(?!.)},
+  # 1 => relpath, starting with '/'
+  file: %r((\/(?:.*\/)*)([^/]+\.([^/]+))(?!.)),
+  # 1 => relpath,
+  # 2 => filename w/ extension,
+  # 3 => extension
+}
 
 configure do
   enable :sessions
@@ -29,10 +35,8 @@ helpers do
 end
 
 # Get a list of files
-get REXP_FOLDER do |rel_path|
+get REXP[:folder] do |rel_path|
   begin
-    rel_path ||= '/'
-
     path = validate_path(rel_path)
     @files = files_at_path(path)
 
@@ -44,12 +48,10 @@ get REXP_FOLDER do |rel_path|
 end
 
 # Get a single file
-get REXP_FILE do |rel_path, file_name|
+get REXP[:file] do |rel_path, file_name, extension|
   begin
-    rel_path ||= '/'
-
     file_path = validate_path(rel_path, file_name)
-    content, type = file_content(file_path)
+    content, type = file_content(file_path, extension)
 
     status 200
     content_type type
@@ -92,13 +94,13 @@ rescue IndexError, NameError
   raise ResourceDoesNotExistError, "#{rel_path + filename} does not exist."
 end
 
-def file_content(file)
-  extension = file.split('.').last
-
+def file_content(file, extension)
   case extension
   when 'txt' then [read_plaintext(file), :txt]
   when 'md'  then [read_markdown(file), :html]
-  else read_plaintext file
+  else
+    puts "Warning: unknown filetype #{extension}, #{file}"
+    [read_plaintext(file), :txt]
   end
 end
 
