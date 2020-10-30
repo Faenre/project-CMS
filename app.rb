@@ -48,7 +48,7 @@ get REXP_FILE do |rel_path, file_name|
     rel_path ||= '/'
 
     file_path = validate_path(rel_path, file_name)
-    content = File.read(file_path)
+    content = file_content(file_path)
 
     status 200
     content_type :txt
@@ -89,4 +89,22 @@ def validate_path(rel_path, filename = '')
   path
 rescue IndexError, NameError
   raise ResourceDoesNotExistError, "#{rel_path + filename} does not exist."
+end
+
+def file_content(file)
+  extension = file.split('.').last
+
+  case extension
+  when 'txt' then read_plaintext file
+  when 'md'  then read_markdown file
+  else read_plaintext file
+  end
+end
+
+def read_plaintext(file_path)
+  File.read(file_path)
+end
+
+def read_markdown(file_path)
+  File.read(file_path)
 end
