@@ -4,6 +4,7 @@ require 'erubi'
 require 'redcarpet'
 
 ROOT ||= File.expand_path(__dir__).freeze
+PATH_EXPANSION = "#{ROOT}#{'/test' if test?}/data/%s"
 
 REXP = {
   folder: %r{(\/(?:.*\/)*)(?!.)},
@@ -45,7 +46,7 @@ end
 get REXP[:folder] do |rel_path|
   begin
     @path = validate_path(rel_path)
-    @files = files_at_path(@path)
+    @files = files_at_path(@path, rel_path != '/')
 
     erb :index
   rescue ResourceDoesNotExistError => e
@@ -110,15 +111,17 @@ end
 class ResourceDoesNotExistError < StandardError
 end
 
-def files_at_path(path, **kwargs)
+def files_at_path(path, include_dots = true)
   entries = Dir.entries(path)
-  entries.shift 2 unless kwargs[:include_dots]
+  entries.shift 2 unless include_dots
 
-  entries
+  entries.map! do |entry|
+    File.file?(path + entry) ? entry : entry + '/'
+  end
 end
 
 def validate_path(rel_path, filename = '')
-  path = "#{ROOT}/data/#{rel_path}".squeeze '/'
+  path = format(PATH_EXPANSION, rel_path).squeeze '/'
   raise IndexError unless Dir.exist? path
 
   unless filename.empty?
