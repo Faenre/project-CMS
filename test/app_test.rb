@@ -6,7 +6,8 @@ require "rack/test"
 require "./app"
 
 class AppTest < Minitest::Test
-  HTML_LI_FILE = '<li><a href=%{fn}>%{fn}</a></li>'
+  HTML_LI_FILE = '<a href="%{fn}">%{fn}</a>'
+  HTML_EDIT_LINK = '(<a href="%{fn}/edit">edit</a>)'
 
   include Rack::Test::Methods
 
@@ -29,6 +30,18 @@ class AppTest < Minitest::Test
     list_items = data_files.map { |fn| format(HTML_LI_FILE, fn: fn) }
 
     list_items.each do |line_item|
+      assert_includes last_response.body, line_item
+    end
+  end
+
+  def test_index_includes_edit_links
+    get '/'
+
+    data_files = Dir.entries('./data/')
+    data_files.shift 2
+    edit_links = data_files.map { |fn| format(HTML_EDIT_LINK, fn: fn) }
+
+    edit_links.each do |line_item|
       assert_includes last_response.body, line_item
     end
   end

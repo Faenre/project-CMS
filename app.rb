@@ -11,6 +11,10 @@ REXP = {
   file: %r((\/(?:.*\/)*)([^/]+\.([^/]+))(?!.)),
   # 1 => relpath,
   # 2 => filename w/ extension,
+  # 3 => extension.
+  edit_file: %r((\/(?:.*\/)*)([^/]+\.([^/]+))\/edit(?!.))
+  # 1 => relpath,
+  # 2 => filename w/ extension,
   # 3 => extension
 }
 
@@ -62,6 +66,36 @@ get REXP[:file] do |rel_path, file_name, extension|
   end
 end
 
+get REXP[:edit_file] do |rel_path, file_name, _|
+  begin
+    file_path = validate_path(rel_path, file_name)
+    @content, _ = file_content(file_path, 'txt')
+    @path = rel_path + file_name
+    @file_name = file_name
+
+    erb :file_edit
+  rescue ResourceDoesNotExistError => e
+    session[:error] = e.message
+    redirect '/'
+  end
+end
+
+# Save changes to /some/file.txt/edit
+post REXP[:edit_file] do |rel_path, file_name, _|
+  begin
+    file_path = validate_path(rel_path, file_name)
+    content = params['file_content']
+
+    write_file file_path, content
+
+    session[:success] = "#{file_name} saved successfully!"
+    redirect '/'
+  rescue ResourceDoesNotExistError => e
+    session[:error] = e.message
+    redirect '/'
+  end
+end
+
 # How did this happen??
 not_found do
   session[:error] = 'Well, this is embarrassing...'
@@ -94,7 +128,7 @@ rescue IndexError, NameError
   raise ResourceDoesNotExistError, "#{rel_path + filename} does not exist."
 end
 
-def file_content(file, extension)
+def file_content(file, extension='txt')
   case extension
   when 'txt' then [read_plaintext(file), :txt]
   when 'md'  then [read_markdown(file), :html]
@@ -115,4 +149,8 @@ def read_markdown(file_path)
   html = md_engine.render(plaintext)
 
   erb(html)
+end
+
+def write_file(file_path, content)
+  File.write(file_path, content)
 end
