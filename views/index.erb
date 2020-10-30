@@ -1,5 +1,8 @@
 <ul>
   <% @files.each do |fname| %>
-    <li><a href=<%= fname %>><%= fname %></a></li>
+    <li>
+      <a href="<%= fname %>"><%= fname %></a>
+      (<a href="<%= "#{fname}/edit" %>">edit</a>)
+    </li>
   <% end %>
 </ul>
