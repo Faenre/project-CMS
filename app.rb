@@ -1,6 +1,7 @@
 require 'sinatra'
 require 'sinatra/reloader' if development?
 require 'erubi'
+require 'redcarpet'
 
 ROOT ||= File.expand_path(__dir__).freeze
 
@@ -48,10 +49,10 @@ get REXP_FILE do |rel_path, file_name|
     rel_path ||= '/'
 
     file_path = validate_path(rel_path, file_name)
-    content = file_content(file_path)
+    content, type = file_content(file_path)
 
     status 200
-    content_type :txt
+    content_type type
     content
   rescue ResourceDoesNotExistError => e
     session[:error] = e.message
@@ -95,8 +96,8 @@ def file_content(file)
   extension = file.split('.').last
 
   case extension
-  when 'txt' then read_plaintext file
-  when 'md'  then read_markdown file
+  when 'txt' then [read_plaintext(file), :txt]
+  when 'md'  then [read_markdown(file), :html]
   else read_plaintext file
   end
 end
@@ -106,5 +107,10 @@ def read_plaintext(file_path)
 end
 
 def read_markdown(file_path)
-  File.read(file_path)
+  plaintext = read_plaintext file_path
+
+  md_engine = Redcarpet::Markdown.new(Redcarpet::Render::HTML)
+  html = md_engine.render(plaintext)
+
+  erb(html)
 end

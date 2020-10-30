@@ -15,6 +15,7 @@ GEM
     rack-test (1.1.0)
       rack (>= 1.0, < 3)
     rake (13.0.1)
+    redcarpet (3.5.0)
     ruby2_keywords (0.0.2)
     sinatra (2.1.0)
       mustermann (~> 1.0)
@@ -38,6 +39,7 @@ DEPENDENCIES
   puma
   rack-test
   rake
+  redcarpet
   sinatra
   sinatra-contrib
 

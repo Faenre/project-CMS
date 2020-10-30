@@ -5,6 +5,7 @@ gem 'erubi'
 gem 'minitest'
 gem 'rack-test'
 gem 'rake'
+gem 'redcarpet'
 gem 'sinatra'
 gem 'sinatra-contrib'
 
