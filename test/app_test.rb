@@ -79,17 +79,17 @@ class AppTest < Minitest::Test
     assert_equal 200, last_response.status
   end
 
+  def test_get_text_file_yields_expected_content_type
+    get '/plain.txt'
+
+    assert_equal "text/plain;charset=utf-8", last_response["Content-Type"]
+  end
+
   def test_get_text_file_yields_expected_content
     get '/plain.txt'
 
     expected = File.read(DATA_FOLDER + '/plain.txt')
     assert_equal expected, last_response.body
-  end
-
-  def test_get_text_file_yields_expected_content_type
-    get '/plain.txt'
-
-    assert_equal "text/plain;charset=utf-8", last_response["Content-Type"]
   end
 
   def test_get_markdown_file_yields_expected_content_type
@@ -98,7 +98,14 @@ class AppTest < Minitest::Test
     assert_equal "text/html;charset=utf-8", last_response["Content-Type"]
   end
 
-  def test_get_folder_dne_redirects_to_index
+  def test_get_markdown_file_yields_expected_content
+    get '/markdown.md'
+
+    refute_includes last_response.body, '# Here is a big heading'
+    assert_includes last_response.body, '<h1>Here is a big heading</h1>'
+  end
+
+  def test_get_nonexistant_folder_redirects_to_index
     bad_folder_name = '/asdfasdfasasdf/'
     get bad_folder_name
 
@@ -106,7 +113,7 @@ class AppTest < Minitest::Test
     # assert_equal '/', last_response['Location']
   end
 
-  def test_get_folder_dne_includes_error_message
+  def test_get_nonexistant_folder_includes_error_message
     bad_folder_name = '/asdfasdfasasdf/'
     get bad_folder_name
     get last_response['Location']
@@ -114,7 +121,7 @@ class AppTest < Minitest::Test
     assert_includes last_response.body, "#{bad_folder_name} does not exist."
   end
 
-  def test_get_file_dne_redirects_to_index
+  def test_get_nonexistant_file_redirects_to_index
     bad_file_name = '/asdfasdfasasdf.xyz'
     get bad_file_name
 
@@ -122,7 +129,7 @@ class AppTest < Minitest::Test
     assert (300...400).cover? last_response.status
   end
 
-  def test_get_file_dne_includes_error_message
+  def test_get_nonexistant_file_includes_error_message
     bad_file_name = '/asdfasdfasasdf.sdf'
     get bad_file_name
     get last_response['Location']
@@ -130,7 +137,7 @@ class AppTest < Minitest::Test
     assert_includes last_response.body, "#{bad_file_name} does not exist."
   end
 
-  def test_flash_message_disappears
+  def test_flash_message_disappears_after_first_view
     bad_file_name = '/asdfasdfasasdf.sdf'
     get bad_file_name
     location = last_response['Location']
