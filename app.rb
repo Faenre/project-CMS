@@ -40,6 +40,10 @@ helpers do
   def file?(path, fname)
     File.file? path + fname
   end
+
+  def flash?
+    session[:error] || session[:success]
+  end
 end
 
 get '/stylesheets/*' do |css|
