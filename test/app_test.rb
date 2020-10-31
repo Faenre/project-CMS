@@ -144,4 +144,12 @@ class AppTest < Minitest::Test
     2.times { get location }
     refute_includes last_response.body, "#{bad_file_name} does not exist."
   end
+
+  def test_get_favicon_returns_ok
+    get '/favicon.ico'
+    expected_content = File.open('./public/favicon.ico', 'rb', &:read)
+
+    assert_equal 200, last_response.status
+    assert_equal expected_content, last_response.body
+  end
 end

@@ -51,6 +51,10 @@ get '/stylesheets/*' do |css|
   end
 end
 
+get '/favicon.ico' do
+  File.read '.public/favicon.ico'
+end
+
 # Get a list of files
 get REXP[:folder] do |rel_path|
   begin
@@ -71,7 +75,7 @@ get REXP[:file] do |rel_path, file_name, extension|
     content, type = file_content(file_path, extension)
 
     status 200
-    content_type type
+    content_type type if type
     content
   rescue ResourceDoesNotExistError => e
     session[:error] = e.message
@@ -147,9 +151,10 @@ def file_content(file, extension='txt')
   case extension
   when 'txt' then [read_plaintext(file), :txt]
   when 'md'  then [read_markdown(file), :html]
+  when 'ico' then [read_image(file), nil]
   else
     puts "Warning: unknown filetype #{extension}, #{file}"
-    [read_plaintext(file), :txt]
+    [File.read(file), nil]
   end
 end
 
@@ -164,6 +169,10 @@ def read_markdown(file_path)
   html = md_engine.render(plaintext)
 
   erb(html)
+end
+
+def read_image(file_path)
+  File.open(file_path, 'rb', &:read)
 end
 
 def write_file(file_path, content)
