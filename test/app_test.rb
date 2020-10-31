@@ -73,6 +73,14 @@ class AppTest < Minitest::Test
     end
   end
 
+  def test_get_favicon_returns_ok
+    get '/favicon.ico'
+    expected_content = File.open('./public/favicon.ico', 'rb', &:read)
+
+    assert_equal 200, last_response.status
+    assert_equal expected_content, last_response.body
+  end
+
   def test_get_file_returns_ok
     get '/plain.txt'
 
@@ -109,8 +117,7 @@ class AppTest < Minitest::Test
     bad_folder_name = '/asdfasdfasasdf/'
     get bad_folder_name
 
-    assert (300...400).cover? last_response.status
-    # assert_equal '/', last_response['Location']
+    assert redirect?(last_response.status)
   end
 
   def test_get_nonexistant_folder_includes_error_message
@@ -125,8 +132,7 @@ class AppTest < Minitest::Test
     bad_file_name = '/asdfasdfasasdf.xyz'
     get bad_file_name
 
-    # assert_equal 302, last_response.status
-    assert (300...400).cover? last_response.status
+    assert redirect?(last_response.status)
   end
 
   def test_get_nonexistant_file_includes_error_message
@@ -145,11 +151,42 @@ class AppTest < Minitest::Test
     refute_includes last_response.body, "#{bad_file_name} does not exist."
   end
 
-  def test_get_favicon_returns_ok
-    get '/favicon.ico'
-    expected_content = File.open('./public/favicon.ico', 'rb', &:read)
+  def test_edit_page_includes_expected_content
+    get '/markdown.md/edit'
 
-    assert_equal 200, last_response.status
-    assert_equal expected_content, last_response.body
+    # includes filename
+    assert_includes last_response.body, 'markdown.md'
+
+    # includes text body
+    assert_includes last_response.body, File.read('./test/data/markdown.md')
   end
+
+  def test_edit_page_redirects_with_banner
+    buffer = File.read('./test/data/plain.txt')
+    begin
+      post '/plain.txt/edit', file_content: buffer
+      assert redirect?(last_response.status)
+
+      get '/'
+      assert_includes last_response.body, 'class="success"'
+    ensure
+      File.write('./test/data/plain.txt', buffer)
+    end
+  end
+
+  def test_edit_page_saves_content
+    buffer = File.read('./test/data/plain.txt')
+    begin
+      post '/plain.txt/edit', file_content: 'xyzzy'
+      get '/plain.txt'
+
+      assert_equal 'xyzzy', last_response.body
+    ensure
+      File.write('./test/data/plain.txt', buffer)
+    end
+  end
+end
+
+def redirect?(code)
+  (300...400).cover? code
 end
