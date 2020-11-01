@@ -123,6 +123,7 @@ end
 # Render the 'new document' page
 get REXP[:new_file] do |rel_path|
   @path = rel_path
+  @attempt = ''
 
   erb :file_new
 end
@@ -140,6 +141,7 @@ post REXP[:new_file] do |rel_path|
     redirect '/'
   rescue ResourceAlreadyExistsError, NoExtensionError => e
     session[:error] = e.message
+    @path = rel_path
     @attempt = params['file_name']
     erb :file_new
   end
