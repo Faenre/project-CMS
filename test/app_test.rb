@@ -11,6 +11,7 @@ class AppTest < Minitest::Test
   FOLDER = 'nested_folder/'
   HTML_LI_FILE = '<a href="%{fn}">%{fn}</a>'
   HTML_EDIT_LINK = '(<a href="%{fn}/edit">edit</a>)'
+  # ALLOWED_FILES = `ls #{DATA_FOLDER}`.split("\n")
 
   include Rack::Test::Methods
 
@@ -22,7 +23,9 @@ class AppTest < Minitest::Test
     get '/'
   end
 
-  def teardown; end
+  def teardown
+    # {}`git checkout -- ./test/data`
+  end
 
   def test_index_is_available
     assert_equal 200, last_response.status
@@ -162,16 +165,11 @@ class AppTest < Minitest::Test
   end
 
   def test_edit_page_redirects_with_banner
-    buffer = File.read('./test/data/plain.txt')
-    begin
-      post '/plain.txt/edit', file_content: buffer
-      assert redirect?(last_response.status)
+    post '/plain.txt/edit', file_content: 'xyzzy'
+    assert redirect?(last_response.status)
 
-      get '/'
-      assert_includes last_response.body, 'class="success"'
-    ensure
-      File.write('./test/data/plain.txt', buffer)
-    end
+    get '/'
+    assert_includes last_response.body, 'class="success"'
   end
 
   def test_edit_page_saves_content
@@ -184,6 +182,54 @@ class AppTest < Minitest::Test
     ensure
       File.write('./test/data/plain.txt', buffer)
     end
+  end
+
+  def test_new_document_page_renders_successfully
+    get '/new'
+
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, '<input type="text"'
+    assert_includes last_response.body, '<input type="submit"'
+  end
+
+  def test_post_new_document_no_extension_doesnt_redirect
+    post '/new', file_name: 'xyzzy'
+
+    refute last_response.redirect?
+    assert_includes last_response.body, '<input type="text"'
+    assert_includes last_response.body, '<input type="submit"'
+  end
+
+  def test_post_new_document_no_extension_includes_banner
+    post '/new', file_name: 'xyzzy'
+
+    assert_includes last_response.body, 'class="error"'
+  end
+
+  def test_post_new_document_incorrect_folder_redirects_to_index
+    post 'xyzzy/new', file_name: 'xyzzy'
+
+    assert last_response.redirect?
+    assert_equal 'http://example.org/', last_response.location
+  end
+
+  def test_post_new_document_creates_file_successfully
+    post '/new', file_name: 'xyzzy.txt'
+    get '/'
+    assert_includes last_response.body, 'class="success"'
+
+    assert File.delete './test/data/xyzzy.txt'
+  rescue StandardError
+    assert false, 'file not created successfully'
+  end
+
+  def test_post_new_document_redirects_to_index
+    post '/new', file_name: 'xyzzy.txt'
+
+    assert last_response.redirect?
+    assert_equal 'http://example.org/', last_response.location
+
+    File.delete './test/data/xyzzy.txt'
   end
 end
 
