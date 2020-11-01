@@ -28,7 +28,7 @@ class AppTest < Minitest::Test
   end
 
   def test_index_is_available
-    assert_equal 200, last_response.status
+    assert last_response.ok?
     assert_equal "text/html;charset=utf-8", last_response["Content-Type"]
   end
 
@@ -80,14 +80,14 @@ class AppTest < Minitest::Test
     get '/favicon.ico'
     expected_content = File.open('./public/favicon.ico', 'rb', &:read)
 
-    assert_equal 200, last_response.status
+    assert last_response.ok?
     assert_equal expected_content, last_response.body
   end
 
   def test_get_file_returns_ok
     get '/plain.txt'
 
-    assert_equal 200, last_response.status
+    assert last_response.ok?
   end
 
   def test_get_text_file_yields_expected_content_type
@@ -120,7 +120,8 @@ class AppTest < Minitest::Test
     bad_folder_name = '/asdfasdfasasdf/'
     get bad_folder_name
 
-    assert redirect?(last_response.status)
+    assert last_response.redirect?
+    assert_equal 'http://example.org/', last_response.location
   end
 
   def test_get_nonexistant_folder_includes_error_message
@@ -135,7 +136,8 @@ class AppTest < Minitest::Test
     bad_file_name = '/asdfasdfasasdf.xyz'
     get bad_file_name
 
-    assert redirect?(last_response.status)
+    assert last_response.redirect?
+    assert_equal 'http://example.org/', last_response.location
   end
 
   def test_get_nonexistant_file_includes_error_message
@@ -147,11 +149,10 @@ class AppTest < Minitest::Test
   end
 
   def test_flash_message_disappears_after_first_view
-    bad_file_name = '/asdfasdfasasdf.sdf'
-    get bad_file_name
-    location = last_response['Location']
-    2.times { get location }
-    refute_includes last_response.body, "#{bad_file_name} does not exist."
+    get '/xyzzy.xyz'
+    2.times { get '/' }
+
+    refute_includes last_response.body, "xyzzy.xyz does not exist."
   end
 
   def test_edit_page_includes_expected_content
@@ -166,7 +167,8 @@ class AppTest < Minitest::Test
 
   def test_edit_page_redirects_with_banner
     post '/plain.txt/edit', file_content: 'xyzzy'
-    assert redirect?(last_response.status)
+    assert last_response.redirect?
+    assert_equal 'http://example.org/', last_response.location
 
     get '/'
     assert_includes last_response.body, 'class="success"'
@@ -187,7 +189,7 @@ class AppTest < Minitest::Test
   def test_new_document_page_renders_successfully
     get '/new'
 
-    assert_equal 200, last_response.status
+    assert last_response.ok?
     assert_includes last_response.body, '<input type="text"'
     assert_includes last_response.body, '<input type="submit"'
   end
@@ -231,8 +233,4 @@ class AppTest < Minitest::Test
 
     File.delete './test/data/xyzzy.txt'
   end
-end
-
-def redirect?(code)
-  (300...400).cover? code
 end
