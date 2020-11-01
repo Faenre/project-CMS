@@ -13,10 +13,12 @@ REXP = {
   # 1 => relpath,
   # 2 => filename w/ extension,
   # 3 => extension.
-  edit_file: %r((\/(?:.*\/)*)([^/]+\.([^/]+))\/edit(?!.))
+  edit_file: %r((\/(?:.*\/)*)([^/]+\.([^/]+))\/edit(?!.)),
   # 1 => relpath,
   # 2 => filename w/ extension,
   # 3 => extension
+  new_file: %r((\/(?:.*\/)*)new(?!.))
+  # 1 => relpath
 }
 
 configure do
@@ -59,7 +61,7 @@ get '/favicon.ico' do
   File.read '.public/favicon.ico'
 end
 
-# Get a list of files
+# Render a list of files
 get REXP[:folder] do |rel_path|
   begin
     @path = validate_path(rel_path)
@@ -72,7 +74,7 @@ get REXP[:folder] do |rel_path|
   end
 end
 
-# Get a single file
+# Render a single file
 get REXP[:file] do |rel_path, file_name, extension|
   begin
     file_path = validate_path(rel_path, file_name)
@@ -87,6 +89,7 @@ get REXP[:file] do |rel_path, file_name, extension|
   end
 end
 
+# Render the edit-file page
 get REXP[:edit_file] do |rel_path, file_name, _|
   begin
     file_path = validate_path(rel_path, file_name)
@@ -117,6 +120,31 @@ post REXP[:edit_file] do |rel_path, file_name, _|
   end
 end
 
+# Render the 'new document' page
+get REXP[:new_file] do |rel_path|
+  @path = rel_path
+
+  erb :file_new
+end
+
+# Create a new document
+post REXP[:new_file] do |rel_path|
+  begin
+    path = validate_path(rel_path)
+    file = create_file(path, params['file_name'])
+
+    session[:success] = "#{file} created successfully!"
+    redirect rel_path
+  rescue ResourceDoesNotExistError => e
+    session[:error] = e.message
+    redirect '/'
+  rescue ResourceAlreadyExistsError, NoExtensionError => e
+    session[:error] = e.message
+    @attempt = params['file_name']
+    erb :file_new
+  end
+end
+
 # How did this happen??
 not_found do
   session[:error] ||= 'Well, this is embarrassing...'
@@ -126,6 +154,12 @@ end
 # ----
 
 class ResourceDoesNotExistError < StandardError
+end
+
+class ResourceAlreadyExistsError < StandardError
+end
+
+class NoExtensionError < StandardError
 end
 
 def files_at_path(path, include_dots = true)
@@ -181,4 +215,19 @@ end
 
 def write_file(file_path, content)
   File.write(file_path, content)
+end
+
+def create_file(file_path, file_name)
+  file_path_with_name = file_path + file_name
+
+  if File.exist? file_path_with_name
+    raise ResourceAlreadyExistsError, "#{file_path_with_name} already exists!"
+  end
+
+  unless %w(.txt .md).any? { |ext| file_name.include? ext }
+    raise NoExtensionError, "Please add an extension."
+  end
+
+  File.open(file_path_with_name, 'w') {}
+  file_name
 end
