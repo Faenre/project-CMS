@@ -18,6 +18,12 @@ class AppTest < Minitest::Test
     success: '<div class="success">',
     error: '<div class="error">'
   }
+  TEST_USER = 'test_account'
+  TEST_PASSWORD = 'test_password'
+  TEST_SECRET = '0123456789abcdef'
+  TEST_PAIR = { user: TEST_USER, secret: TEST_SECRET }.freeze
+  TEST_SESSION = { 'rack.session' => TEST_PAIR }.freeze
+  EMPTY_SESSION = { 'rack.session' => { user: nil, secret: nil } }.freeze
 
   include Rack::Test::Methods
 
@@ -26,16 +32,25 @@ class AppTest < Minitest::Test
   end
 
   def setup
-    post '/users/signin', { username: 'admin', password: 'secret' }
     get '/'
   end
 
   def teardown
-    # {}`git checkout -- ./test/data`
+    sign_out
+  end
+
+  def sign_in
+    # session.merge! TEST_SESSION
+    # get '/', {}, { 'rack.session' => TEST_SESSION }
+    get '/', {}, TEST_SESSION
+  end
+
+  def sign_out
+    get '/', {}, EMPTY_SESSION
   end
 
   def session
-    last_request.env['rack.session']
+    last_request.session
   end
 
   def test_index_is_available
@@ -167,6 +182,7 @@ class AppTest < Minitest::Test
   end
 
   def test_edit_page_includes_expected_content
+    sign_in
     get '/markdown.md/edit'
 
     # includes filename
@@ -177,6 +193,7 @@ class AppTest < Minitest::Test
   end
 
   def test_edit_page_redirects_with_banner
+    sign_in
     post '/plain.txt/edit', file_content: 'xyzzy'
     assert last_response.redirect?
     assert_equal 'http://example.org/', last_response.location
@@ -188,6 +205,7 @@ class AppTest < Minitest::Test
   end
 
   def test_edit_page_saves_content
+    sign_in
     buffer = File.read('./test/data/plain.txt')
     begin
       post '/plain.txt/edit', file_content: 'xyzzy'
@@ -200,6 +218,7 @@ class AppTest < Minitest::Test
   end
 
   def test_new_document_page_renders_successfully
+    sign_in
     get '/new'
 
     assert last_response.ok?, 'response not OK'
@@ -208,6 +227,7 @@ class AppTest < Minitest::Test
   end
 
   def test_post_new_document_no_extension_doesnt_redirect
+    sign_in
     post '/new', file_name: 'xyzzy'
 
     refute last_response.redirect?
@@ -216,12 +236,14 @@ class AppTest < Minitest::Test
   end
 
   def test_post_new_document_no_extension_includes_banner
+    sign_in
     post '/new', file_name: 'xyzzy'
 
     assert_includes last_response.body, 'class="error"'
   end
 
   def test_post_new_document_incorrect_folder_redirects_to_index
+    sign_in
     post 'xyzzy/new', file_name: 'xyzzy'
 
     assert last_response.redirect?
@@ -229,9 +251,12 @@ class AppTest < Minitest::Test
   end
 
   def test_post_new_document_creates_file_successfully
+    sign_in
     post '/new', file_name: 'xyzzy.txt'
+    refute_nil session[:success], 'success message missing'
+
     get '/'
-    assert_includes last_response.body, 'class="success"'
+    assert_includes last_response.body, 'xyzzy.txt'
 
     assert File.delete './test/data/xyzzy.txt'
   rescue StandardError
@@ -239,7 +264,8 @@ class AppTest < Minitest::Test
   end
 
   def test_post_new_document_redirects_to_index
-    post '/new', file_name: 'xyzzy.txt'
+    sign_in
+    post '/new', { file_name: 'xyzzy.txt' }
 
     assert last_response.redirect?
     assert_equal 'http://example.org/', last_response.location
@@ -248,12 +274,11 @@ class AppTest < Minitest::Test
   end
 
   def test_index_includes_delete_button
-    delete_link = '/delete" method="POST"'
-
-    assert_includes last_response.body, delete_link
+    assert_includes last_response.body, '/delete" method="POST"'
   end
 
   def test_delete_does_work
+    sign_in
     ensure_clean_deletion do |fname|
       post "/#{fname}/delete"
       refute_includes Dir.entries(DATA_FOLDER), fname
@@ -261,6 +286,7 @@ class AppTest < Minitest::Test
   end
 
   def test_deletion_redirects_to_index
+    sign_in
     ensure_clean_deletion do |fname|
       post "/#{fname}/delete"
 
@@ -270,26 +296,43 @@ class AppTest < Minitest::Test
   end
 
   def test_deletion_redirects_includes_banner
+    sign_in
     ensure_clean_deletion do |fname|
       post "/#{fname}/delete"
-      get '/'
-      assert_includes last_response.body, HTML_ELEMENTS[:success]
+      refute_nil session[:success], 'success message missing'
     end
   end
 
   def test_login_page_redirects_if_logged_in
-    get '/'
+    sign_in
+    get '/users/signin'
 
-    assert last_response.redirect?
+    assert last_response.redirect?, 'doesnt redirect'
   end
 
   def test_login_doesnt_redirect_on_bad_info
     post '/users/signin', { username: 'user_abc123', password: 'xyz' }
 
     refute last_response.redirect?, 'request redirected but shouldnt'
-    refute_nil session[:error], 'error message missing'
+    assert_includes last_response.body, 'class="error"'
 
     assert_includes last_response.body, 'value="user_abc123"'
+  end
+
+  def test_login_with_correct_data_redirects_correctly
+    post '/users/signin', { username: TEST_USER, password: TEST_PASSWORD }
+
+    assert last_response.redirect?, 'didnt redirect'
+    refute_nil session[:success], 'success message missing'
+  end
+
+  def test_logout_logs_out_successfully
+    sign_in
+    post '/users/signout'
+
+    assert_nil session[:user], 'didnt remove user from session'
+    assert last_response.redirect?, 'didnt redirect'
+    refute_nil session[:success], 'success message missing'
   end
 end
 

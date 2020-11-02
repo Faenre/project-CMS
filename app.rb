@@ -2,11 +2,17 @@ require 'sinatra'
 require 'sinatra/reloader' if development?
 require 'erubi'
 require 'redcarpet'
+require 'securerandom'
 
 ROOT ||= File.expand_path(__dir__).freeze
-PATH_EXPANSION = "#{ROOT}#{'/test' if test?}/data/%s"
+PATH_EXPANSION ||= "#{ROOT}#{'/test' if test?}/data/%s"
 SESSIONS ||= {}
-LOGINS = { 'admin' => 'secret' }
+LOGINS ||= { 'admin' => 'secret' }
+
+if test?
+  SESSIONS['test_account'] = ['0123456789abcdef']
+  LOGINS['test_account'] = 'test_password'
+end
 
 REXP = {
   folder: %r{(\/(?:.*\/)*)(?!.)},
@@ -80,6 +86,7 @@ post '/users/signin' do
   user = params[:username]
   password = params[:password]
   if LOGINS[user]&.==(password)
+    session[:secret] = SecureRandom.base64 16
     SESSIONS[user] ||= []
     SESSIONS[user] << session[:secret]
     session[:user] = user
@@ -94,8 +101,9 @@ end
 post '/users/signout' do
   require_login
 
-  SESSIONS[user].delete session[:secret]
+  # SESSIONS[user].delete session[:secret]
   session[:user] = nil
+  session[:secret] = nil
   session[:success] = 'Logged out successfully!'
 
   redirect '/'
