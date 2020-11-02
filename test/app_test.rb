@@ -6,8 +6,9 @@ require 'tempfile'
 
 require "./app"
 
+DATA_FOLDER = './test/data'
+
 class AppTest < Minitest::Test
-  DATA_FOLDER = './test/data'
   FOLDER = 'nested_folder/'
   HTML_LI_FILE = '<a href="%{fn}">%{fn}</a>'
   HTML_EDIT_LINK = '(<a href="%{fn}/edit">edit</a>)'
@@ -232,5 +233,33 @@ class AppTest < Minitest::Test
     assert_equal 'http://example.org/', last_response.location
 
     File.delete './test/data/xyzzy.txt'
+  end
+
+  def test_index_includes_delete_button
+    delete_link = '<a href="plain.txt", method="post">Delete</a>'
+
+    assert_includes last_response.body, delete_link
+  end
+
+  def test_delete_does_work
+    ensure_clean_deletion do |fname|
+      post "/#{fname}/delete"
+    end
+
+    assert last_response.ok?
+    refute_includes Dir.entries(DATA_FOLDER), fname
+  end
+end
+
+def ensure_clean_deletion(&block)
+  tempfile = Tempfile.new(['xyzzy', '.xyz'], DATA_FOLDER)
+  fpath = tempfile.path
+  fname = File.basename fpath
+
+  block.call fname, fpath
+ensure
+  unless tempfile.nil?
+    tempfile.close
+    tempfile.unlink
   end
 end
