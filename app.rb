@@ -93,7 +93,7 @@ end
 get REXP[:edit_file] do |rel_path, file_name, _|
   begin
     file_path = validate_path(rel_path, file_name)
-    @content, _ = file_content(file_path, 'txt')
+    @content, = file_content(file_path, 'txt')
     @path = rel_path + file_name
     @file_name = file_name
 
