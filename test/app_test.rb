@@ -26,11 +26,16 @@ class AppTest < Minitest::Test
   end
 
   def setup
+    post '/users/signin', { username: 'admin', password: 'secret' }
     get '/'
   end
 
   def teardown
     # {}`git checkout -- ./test/data`
+  end
+
+  def session
+    last_request.env['rack.session']
   end
 
   def test_index_is_available

@@ -22,5 +22,19 @@
       <% end %>
     </header>
     <%== yield %>
+    <hr />
+    <footer>
+      <% if signed_in? %>
+        Signed in as <%= user %>
+        <form action="/users/signout" method="POST">
+          <input type="submit" value="Sign out">
+        </form>
+      <% else %>
+        Currently not signed in.
+        <form action="/users/signin" method="GET">
+          <input type="submit" value="Sign in">
+        </form>
+      <% end %>
+    </footer>
   </body>
 </html>

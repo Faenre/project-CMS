@@ -5,6 +5,8 @@ require 'redcarpet'
 
 ROOT ||= File.expand_path(__dir__).freeze
 PATH_EXPANSION = "#{ROOT}#{'/test' if test?}/data/%s"
+SESSIONS ||= {}
+LOGINS = { 'admin' => 'secret' }
 
 REXP = {
   folder: %r{(\/(?:.*\/)*)(?!.)},
@@ -35,6 +37,8 @@ end
 # GET   /**/new         --> view page to create new file
 # POST  /**/new         --> process file creation request
 # POST  /**/*/delete    --> annihilate a file
+# GET   /users/signin   --> view sign-in page
+# POST  /users/signin   --> attempt login
 
 before do
 end
@@ -64,6 +68,37 @@ end
 
 get '/favicon.ico' do
   File.read '.public/favicon.ico'
+end
+
+get '/users/signin' do
+  redirect '/' if signed_in?
+
+  erb :signin
+end
+
+post '/users/signin' do
+  user = params[:username]
+  password = params[:password]
+  if LOGINS[user]&.==(password)
+    SESSIONS[user] ||= []
+    SESSIONS[user] << session[:secret]
+    session[:user] = user
+    session[:success] = 'Logged in successfully!'
+    redirect '/'
+  else
+    session[:error] = 'Invalid username or password.'
+    erb :signin
+  end
+end
+
+post '/users/signout' do
+  require_login
+
+  SESSIONS[user].delete session[:secret]
+  session[:user] = nil
+  session[:success] = 'Logged out successfully!'
+
+  redirect '/'
 end
 
 # Render a list of files
@@ -97,6 +132,7 @@ end
 
 # Render the edit-file page
 get REXP[:edit_file] do |rel_path, file_name, _|
+  require_login
   begin
     file_path = validate_path(rel_path, file_name)
     @content, = file_content(file_path, 'txt')
@@ -112,6 +148,7 @@ end
 
 # Save changes to /some/file.txt/edit
 post REXP[:edit_file] do |rel_path, file_name, _|
+  require_login
   begin
     file_path = validate_path(rel_path, file_name)
     content = params['file_content']
@@ -128,6 +165,7 @@ end
 
 # Render the 'new document' page
 get REXP[:new_file] do |rel_path|
+  require_login
   @path = rel_path
   @attempt = ''
 
@@ -136,6 +174,7 @@ end
 
 # Create a new document
 post REXP[:new_file] do |rel_path|
+  require_login
   begin
     path = validate_path(rel_path)
     file = create_file(path, params['file_name'])
@@ -155,6 +194,7 @@ end
 
 # Delete a document
 post REXP[:delete_file] do |rel_path, fname, _|
+  require_login
   begin
     path = validate_path(rel_path, fname)
 
@@ -186,6 +226,21 @@ end
 
 class NoExtensionError < StandardError
 end
+
+def require_login
+  return if signed_in?
+
+  session[:error] = 'You must be signed in to continue.'
+  redirect '/users/signin'
+end
+
+def signed_in?
+  SESSIONS[user]&.include? session_id
+end
+
+def user; session[:user]; end
+
+def session_id; session[:secret]; end
 
 def files_at_path(path, include_dots = true)
   entries = Dir.entries(path)
