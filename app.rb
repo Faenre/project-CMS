@@ -8,17 +8,14 @@ PATH_EXPANSION = "#{ROOT}#{'/test' if test?}/data/%s"
 
 REXP = {
   folder: %r{(\/(?:.*\/)*)(?!.)},
+  new_file: %r((\/(?:.*\/)*)new(?!.)),
   # 1 => relpath, starting with '/'
   file: %r((\/(?:.*\/)*)([^/]+\.([^/]+))(?!.)),
-  # 1 => relpath,
-  # 2 => filename w/ extension,
-  # 3 => extension.
   edit_file: %r((\/(?:.*\/)*)([^/]+\.([^/]+))\/edit(?!.)),
+  delete_file: %r((\/(?:.*\/)*)([^/]+\.([^/]+))\/delete(?!.))
   # 1 => relpath,
   # 2 => filename w/ extension,
   # 3 => extension
-  new_file: %r((\/(?:.*\/)*)new(?!.))
-  # 1 => relpath
 }
 
 configure do
@@ -30,21 +27,29 @@ end
 #
 ## Routes
 #
-# GET   /           -> view index
-# GET   /**/        -> view files in a folder
-# GET   /**/*       -> view single file
-#
+# GET   /               --> view index
+# GET   /**/            --> view files in a folder
+# GET   /**/*           --> view single file
+# GET   /**/*/edit      --> view edit page for file
+# POST  /**/*/edit      --> save page edits
+# GET   /**/new         --> view page to create new file
+# POST  /**/new         --> process file creation request
+# POST  /**/*/delete    --> annihilate a file
 
 before do
 end
 
 helpers do
   def file?(path, fname)
-    File.file? path + fname
+    File.file?(format(PATH_EXPANSION, path) + fname)
   end
 
   def flash?
     session[:error] || session[:success]
+  end
+
+  def rel_path_to(fname)
+    "#{@path}#{fname}"
   end
 end
 
@@ -64,8 +69,9 @@ end
 # Render a list of files
 get REXP[:folder] do |rel_path|
   begin
-    @path = validate_path(rel_path)
-    @files = files_at_path(@path, rel_path != '/')
+    @path = rel_path
+    full_path = validate_path(rel_path)
+    @files = files_at_path(full_path, rel_path != '/')
 
     erb :index
   rescue ResourceDoesNotExistError => e
@@ -144,6 +150,23 @@ post REXP[:new_file] do |rel_path|
     @path = rel_path
     @attempt = params['file_name']
     erb :file_new
+  end
+end
+
+# Delete a document
+post REXP[:delete_file] do |rel_path, fname, _|
+  begin
+    path = validate_path(rel_path, fname)
+
+    File.delete(path)
+
+    session[:success] = "#{fname} deleted successfully."
+    status 200
+    redirect '/'
+  rescue ResourceDoesNotExistError => e
+    session[:error] = e.message
+    @path = rel_path
+    erb :index
   end
 end
 

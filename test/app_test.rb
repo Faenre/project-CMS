@@ -13,6 +13,11 @@ class AppTest < Minitest::Test
   HTML_LI_FILE = '<a href="%{fn}">%{fn}</a>'
   HTML_EDIT_LINK = '(<a href="%{fn}/edit">edit</a>)'
   # ALLOWED_FILES = `ls #{DATA_FOLDER}`.split("\n")
+  REDIRECT_ROOT = 'http://example.org/'
+  HTML_ELEMENTS = {
+    success: '<div class="success">',
+    error: '<div class="error">'
+  }
 
   include Rack::Test::Methods
 
@@ -192,7 +197,7 @@ class AppTest < Minitest::Test
   def test_new_document_page_renders_successfully
     get '/new'
 
-    assert last_response.ok?
+    assert last_response.ok?, 'response not OK'
     assert_includes last_response.body, '<input type="text"'
     assert_includes last_response.body, '<input type="submit"'
   end
@@ -215,7 +220,7 @@ class AppTest < Minitest::Test
     post 'xyzzy/new', file_name: 'xyzzy'
 
     assert last_response.redirect?
-    assert_equal 'http://example.org/', last_response.location
+    assert_equal REDIRECT_ROOT, last_response.location
   end
 
   def test_post_new_document_creates_file_successfully
@@ -238,7 +243,7 @@ class AppTest < Minitest::Test
   end
 
   def test_index_includes_delete_button
-    delete_link = '<a href="plain.txt", method="post">Delete</a>'
+    delete_link = '/delete" method="POST"'
 
     assert_includes last_response.body, delete_link
   end
@@ -246,10 +251,25 @@ class AppTest < Minitest::Test
   def test_delete_does_work
     ensure_clean_deletion do |fname|
       post "/#{fname}/delete"
+      refute_includes Dir.entries(DATA_FOLDER), fname
     end
+  end
 
-    assert last_response.ok?
-    refute_includes Dir.entries(DATA_FOLDER), fname
+  def test_deletion_redirects_to_index
+    ensure_clean_deletion do |fname|
+      post "/#{fname}/delete"
+
+      assert last_response.redirect?, 'response not redirection'
+      assert_equal REDIRECT_ROOT, last_response.location
+    end
+  end
+
+  def test_deletion_redirects_includes_banner
+    ensure_clean_deletion do |fname|
+      post "/#{fname}/delete"
+      get '/'
+      assert_includes last_response.body, HTML_ELEMENTS[:success]
+    end
   end
 end
 

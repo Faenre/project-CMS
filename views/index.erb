@@ -3,7 +3,8 @@
     <li>
       <a href="<%= fname %>"><%= fname %></a>
       <% if file?(@path, fname) %>
-        (<a href="<%= "#{fname}/edit" %>">edit</a>)
+        (<a href="<%= "#{rel_path_to fname}/edit" %>">edit</a>)
+        <form action="<%= "#{rel_path_to fname}/delete" %>" method="POST"><input type="submit" value="Delete?"></form>
       <% end %>
     </li>
   <% end %>
