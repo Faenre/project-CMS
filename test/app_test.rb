@@ -276,6 +276,21 @@ class AppTest < Minitest::Test
       assert_includes last_response.body, HTML_ELEMENTS[:success]
     end
   end
+
+  def test_login_page_redirects_if_logged_in
+    get '/'
+
+    assert last_response.redirect?
+  end
+
+  def test_login_doesnt_redirect_on_bad_info
+    post '/users/signin', { username: 'user_abc123', password: 'xyz' }
+
+    refute last_response.redirect?, 'request redirected but shouldnt'
+    refute_nil session[:error], 'error message missing'
+
+    assert_includes last_response.body, 'value="user_abc123"'
+  end
 end
 
 def ensure_clean_deletion(&block)
