@@ -173,6 +173,8 @@ class AppTest < Minitest::Test
 
     get '/'
     assert_includes last_response.body, 'class="success"'
+  ensure
+    git_cleanup
   end
 
   def test_edit_page_saves_content
@@ -262,4 +264,8 @@ ensure
     tempfile.close
     tempfile.unlink
   end
+end
+
+def git_cleanup
+  `git checkout -- #{DATA_FOLDER}`
 end
