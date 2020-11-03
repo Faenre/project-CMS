@@ -3,11 +3,12 @@ require 'sinatra/reloader' if development?
 require 'erubi'
 require 'redcarpet'
 require 'securerandom'
+require 'yaml'
 
 ROOT ||= File.expand_path(__dir__).freeze
 PATH_EXPANSION ||= "#{ROOT}#{'/test' if test?}/data/%s"
 SESSIONS ||= {}
-LOGINS ||= { 'admin' => 'secret' }
+LOGINS ||= YAML.safe_load(File.open(ROOT + 'passwords.yml'))['passwords']
 
 if test?
   SESSIONS['test_account'] = ['0123456789abcdef']
