@@ -1,6 +1,7 @@
+require 'bcrypt'
+require 'erubi'
 require 'sinatra'
 require 'sinatra/reloader' if development?
-require 'erubi'
 require 'redcarpet'
 require 'securerandom'
 require 'yaml'
@@ -11,7 +12,9 @@ end
 
 ROOT ||= File.expand_path(__dir__).freeze
 PATH_EXPANSION ||= "#{ROOT}#{'/test' if test?}/data/%s"
-LOGINS ||= YAML.safe_load(File.read(ROOT + '/test/passwords.yml'))['passwords']
+LOGINS ||= YAML.safe_load(
+  File.read("#{ROOT}#{'/test' if test?}/passwords.yml")
+)['passwords'].map { |key, pw| [key, BCrypt::Password.new(pw)] }.to_h
 
 SESSIONS ||= {}
 SESSIONS['test_account'] = ['0123456789abcdef'].freeze if test?

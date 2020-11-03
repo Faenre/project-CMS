@@ -1,6 +1,7 @@
 source 'https://rubygems.org'
 ruby '2.7.2'
 
+gem 'bcrypt'
 gem 'erubi'
 gem 'minitest'
 gem 'rack-test'
