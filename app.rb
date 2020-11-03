@@ -5,15 +5,16 @@ require 'redcarpet'
 require 'securerandom'
 require 'yaml'
 
+def test?
+  ENV['RACK_ENV'] == 'test'
+end
+
 ROOT ||= File.expand_path(__dir__).freeze
 PATH_EXPANSION ||= "#{ROOT}#{'/test' if test?}/data/%s"
-SESSIONS ||= {}
-LOGINS ||= YAML.safe_load(File.open(ROOT + 'passwords.yml'))['passwords']
+LOGINS ||= YAML.safe_load(File.read(ROOT + '/test/passwords.yml'))['passwords']
 
-if test?
-  SESSIONS['test_account'] = ['0123456789abcdef']
-  LOGINS['test_account'] = 'test_password'
-end
+SESSIONS ||= {}
+SESSIONS['test_account'] = ['0123456789abcdef'].freeze if test?
 
 REXP = {
   folder: %r{(\/(?:.*\/)*)(?!.)},
@@ -84,13 +85,13 @@ get '/users/signin' do
 end
 
 post '/users/signin' do
-  user = params[:username]
+  username = params[:username]
   password = params[:password]
-  if LOGINS[user]&.==(password)
+  if LOGINS[username]&.==(password)
     session[:secret] = SecureRandom.base64 16
-    SESSIONS[user] ||= []
-    SESSIONS[user] << session[:secret]
-    session[:user] = user
+    SESSIONS[username] ||= []
+    SESSIONS[username] << session[:secret] unless test?
+    session[:user] = username
     session[:success] = 'Logged in successfully!'
     redirect '/'
   else
@@ -102,7 +103,7 @@ end
 post '/users/signout' do
   require_login
 
-  # SESSIONS[user].delete session[:secret]
+  SESSIONS[user].delete(session[:secret]) unless test?
   session[:user] = nil
   session[:secret] = nil
   session[:success] = 'Logged out successfully!'
